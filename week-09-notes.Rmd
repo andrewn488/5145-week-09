@@ -1,0 +1,686 @@
+---
+title: "Week-09-Notes"
+author: "Andrew Nalundasan"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview Video
+
++ SQL != MQL
+
+# 09-01: MongoDB Operators, Part 1
+
+## MongoDB Operator Overview
+
++ doing queries with operators (comparisons, logicals, etc.) to filter the information
+
+![](sqlvsmql.png)
+
++ MongoDB Queries
+
+    + Extra attention is needed for: 
+        + Documents that may not have fields to evaluate
+            + Dynamic schema
+            + Extra checks in queries are required
+        + The order of processing affects performance
+            + SQL DBMS more automated than NoSQL system
+            + NoSQL environment needs skills around reviewing query plans
+            + Fewer automated DBMS features
+            + Reviewing query plans is a manual effort
+        + Indexing is more important
+            + Order of indexing can yield better performance
+            + Distributed data makes data harder to find
+            + Database designers are needed more often
+
++ Operators - perform effective filtering
+
+    + Comparisons
+    + Logical
+    + Array
+    + Evaluation/expressions (Regular Expressions)
+    + Elements
+    
++ CRUD
+
+    + Insert
+    + Update
+    + Delete
+    + Find and modify
+
+## Operators and BSON
+
++ Operators == Comparisons
++ BSON <- MongoDB's layer to interpret JSON type
+
++ Operators - for comparison of different BSON type values
+
+    + $eq <- matches values that are equal to a specified value
+    + $gt <- matches values that are greater than a specified value
+    + $gte <- matches values that are greater than or equal to a specified value
+    + $in <- matches any of the values specified in an array
+    + $lt <- matches values that are less than a specified value
+    + $lte <- matches values that are less than or equal to a specified value
+    + $ne <- mathes all values that are not equal to a specified value
+    + $nin <- matches none of the values specified in an array
+    
++ BSON Type Values
+
+    + MongoDB's layer of interpreting JSON data
+    + BSON is MOngoDB specific (Binary-JSON)
+        + it is how MOngoDB stores JSON documents
+        + more efficient storage process - uses less space since binary
+        + provides faster and more robust indexing
+            + native JSON stuff not setup for heavy duty indexing
+        + adds metadata to store and retrieve data quickly
+        + adds support for other data types 
+            + date for chronological comparisons
+            + binary
+            
++ Why BSON is important
+
+    + $type operator
+        + evaluates what type the data is
+        + all data can be identified by a specific BSON type
+        + Helps with queries and writing code
+        + ensure operators succeed
+    + when doing comparisons, must do like for like
+        + must compare integer with integer
+        + must compare daet with date
+        + must do conversions in order for queries to work
+        
+## $eq Operator
+
++ most powerful of operators
+    
+    + able to look at fields, sub-documents, fields within sub-documents, and arrays
+    
+![](eq_01.png)
+
+
++ $eq - Field
+
+    + compares equality
+      {<field>: {eq: <value>}}
+    + Example
+      db.students.find({age:{$eq:33}});
+      db.students.find({age:33});  # both equivalent statements
+    + default comparison is $eq
+
++ $eq - Embedded Document
+
+    + Addressed the same as a field
+    + Example
+      db.students.find({"item.name":{$eq: "Rosie"}})
+      db.students.find({"item.name":"Rosie"})
+      
++ $eq - Array Element
+
+    + Finds a match within an array
+        + Documents where the <array> contains the <value>
+    + Example
+        db.students.find({tags:{$eq: "Biking}})
+        db.students.find({tags:"Biking"})
+    + "Scan all elements in an array. If any of them are "Biking", return that document"
+    + Finds a match with an array
+        + Documents where <array> matches the <value> array exactly
+        + Elements and order
+        db.students.find({tags:["Biking", "Skiing"]})
+            + must be in the same order, and the only elements in the array
+            + must be very specific when working with arrays
+
+## $gt, $gte, $lt, $lte, $ne Operators
+
++ Comparisons work exactly as expected
++ Syntax:
+
+    + {<field>: {$gt:<value>}}
+    + {<field>: {$gte:<value>}}
+    + {<field>: {$lt:<value>}}
+    + {<field>: {$lte:<value>}}
+    + {<field>: {$ne:<value>}}
+    
++ works find for fields and with sub-document.fields
++ does NOT work for arrays
++ <field> type and <value> type must match, or be converted to match
+
++ $ne - Field
+
+    + Example
+      db.students.find({item.major: {$ne: "French"}})
+    + Returns true if not equal
+    + Also returns true if <field> DOES NOT EXIST
+    + Can be used to find non-empty arrays
+      db.students.find({tags:{$ne:[]}})
+      "returns all documents where tags: array actually have values to them" 
+
+
+## $in, $nin Pattern Matching Operators
+
++ Finds field matches in a value array
+
+    + {<field>:{$in: [<value1>, <value2>...]}}
+    + Example
+      db.students.find({age:{$in:[45, 46, 47]}});
+      db.students.find({item.major:{$in:["Teaching", "French"]}})
+      
++ $in - Array
+
+    + Finds array field matches in a value array
+        + the either/or scenario we need
+    {<field>:{$in:[<value1>, <value2>...]}}
+    + Example
+        db.students.find({tags:{$in:["Skiing", "Biking"]}});
+        "Will find all students where the tags array has an element that matches **EITHER** Skiing or Biking
+
++ $in - Partial Match
+
+    + finds field matching a partial string value
+        + Called pattern matching
+        + provides the LIKE functionality
+        + /pattern/<options>   # the "/" replaces quotes
+        + ^ <- start
+        + $ <- end
+        + m <- each line for multiline strings
+        + i <- ignores case
+        db.students.find({item.major:{$in:[/^T/, /$B/]}});
+        db.students.find({item.major:{$in:[/^T/i]}});
+        db.students.find({item.name:{$in:[/and//i]}});  # looking for 'and' somewhere within the string, regardless of case
+        
++ $nin - Field
+
+    + Finds fields and arrays that do NOT match any items in a value array
+    + finds documents where the <field> does not exist
+    + {<field>:{$nin: [<value1>, <value2>...]}}
+      db.students.find({age:{$nin:[45, 46, 47]}});
+      db.students.find({item.major:{$nin:["Teaching", "French"]}})
+        
+
+
+# MongoDB Operators, Part 2
+
+## Hands on Operators
+
++ Allow all IP addresses to access DB
++ practice \$gt, \$gte, \$eq, \$lt, \$lte, \$in
+
+## $and, $or Logical Operators
+
++ practice in Studio 3T
++ MQL loves **arrays**
++ evaluation type goes in front of the array
++ comparison operators managed in **ARRAYs**
+
+    + must meet all criteria with $and
+    db.students.find(
+      {$and:[{age: {$gte: 40},
+              {item.major: {$in: ["Teaching", "French"]}},
+              {item.name: {$eq: "Andrew"}}
+              ]}
+    )
+    
+    + must meet any criteria with $or
+    db.students.find(
+      {$or:[{age: {$gte: 40},
+              {item.major: {$in: ["Teaching", "French"]}},
+              {item.name: {$eq: "Andrew"}}
+              ]}
+    )
+
++ $and
+
+    + performs a logical AND operation on an array of one or more expressions
+    + returns documents that match ALL expressions
+        {$and: [{<expression1>}, {<expression2>},...]}
+        
++ $or
+
+    + performs a logical OR operation on an array of one or more expressions
+    + returns documents that match AT LEAST 1 expression
+        {$or: [{<expression1>}, {<expression2>},...]}
+        
++ syntax and structure easy to follow if get into mindset of thinking of everything as an ARRAY
+
+
+## $nor, $not Logical Operators
+
++ $nor
+
+    + Performs a logical NOR operation on an array of one or more expressions
+    + Returns documents that do not match ALL expressions
+    + only matters where it doesn't match all the criteria
+    + **so why use an expression at all if $nor just looks at the field existing or not?** - QUESTION
+    
++ $not
+
+    + Performs a logical NOT operation on an EXPRESSION (not an ARRAY)
+    + Returns documents that do not match the expression
+    + Dynamic schema:
+        + Age less than 40 OR "age" field does not exist
+        + Not the same, because the "age" field must exist
+
+## Array Operators
+
++ working with NoSQL, you must learn how to query ARRAYs
+
++ Array Operators:
+
+    + $eq - has to be THESE elements in THIS order
+    + $ne
+    + $all - has to be THESE elements in ANY order
+    + $elemmatch
+    + $in - has to be ONE OR MORE elements in ANY order
+    + $nin
+    + $size
+    + $location
+    
+![](student_collection.png)
+
++ order within the array matters --> ORDER SENSITIVE, number of elements sensitive
+
++ Array single comparison
+
+    + finds a match within an array
+        + documents where an <array> elements contains the <value>
+    + Example
+        db.students.find({grades:{$gt:90}})
+        + All students with at least one grades element that is > 90
+        
++ $eq - Array multiple comparison
+
+    + Finds a match with an array
+        + Documents where the <array> matches the <value> array exactly
+        + Elements and Order sensitive
+        db.students.find({tags:{$eq:["Biking", "Skiing"]}})
+        + Students whose tags array matches "Biking" and "Skiing" as the first two elements in that order
+        
++ $all - Array multiple comparison
+    
+    + Finds a match with an array
+        + Documents where the <array> matches the <value> array values in ANY order
+        db.students.find({tags:{$all:["Biking", "Skiing"]}})
+        + Students whose tags array contains elements that match "Biking" and "Skiing" in any order
+        
++ Array multiple conditions - $elemMatch
+
+    + Multiple conditions applied against multiple array items
+    db.students.find({grades:{$gte: 80, $lt: 90}})
+    + Any combination of elements can satisfy the condition. One grade is >= 80 and another grade is < 90
+    + Comparison on each element of an array individually: 
+    db.students.find({grades:{$elemMatch: {$gte: 80, $lt: 90}}})
+    + At least one elemtn in the grades array is >= 80 and < 90
+
++ $eq - Empty Array
+
+    + used to find empty arrays
+    db.students.find({tags:{$eq:[]}})
+    + All students with an empty tags array, BUT
+        + only if the tags field exists
+        
++ $ne - Not empty Array
+
+    + Returns documents where the aray field is NOT empty
+    db.students.find({tags:{$ne:[]}})
+    + All students who have values in the tags array
+    
++ $in - Array
+
+    + Finds documents where any <array> element matches any items the comparison array
+    + Only works for documents where the <array> exists
+    db.students.find({tags:{$in:["Skiing", "Biking"]}})
+    + All studnets where the tags array has an element that matches either "Skiing" or "Biking"
+    
++ $nin - Array
+
+    + Finds docuemnts where the <array> elements do NOT match any items the comparison array
+    + Finds documents where the <array> does not exist
+    db.students.find({tags:{$nin:["Skiing", "Biking"]}})
+    + All students where the tags array DOES NOT have EITHER "Skiing" or "Biking" or where the tags array is not used
+    
++ Array element location
+
+    + Finds a match with a specific element in the array
+    + Uses a zerio (0) based array count
+    db.students.find({tags.1:{$eq:"Biking"}})  "tags.1 indicates tags array position 2"
+    + Students whose second tags element matches "Biking"
+    
++ Array size
+
+    + Finds a match with arrays that match a specific number of elements
+    db.students.find({tags:{$size:3}})
+    + Students who have 3 elements in tags array
+
+
+# MongoDB Aggregate, Part 1
+
+## Aggregation Kickoff
+
++ Aggregation pipelines
++ Aggregation
+
+    + Set the stage to summarize data
+    + Aggregate:
+        + list total sales by customer for California
+        + Calculate average sales and net profit for each product group and product
+        + Show the average nightly rental cost for 3-bedroom properties on Maui
+    + Update:
+        + Set letter grade based on calculated GPA
+        + Update all inventory on hands totals, based on today's manufacturing and shipment totals
+    + Aggregation operations <- series of steps that process documents
+        + Return completed results
+            + Results can be scalar or datasets
+            + Same as SQL Server
+        + Update data, based on results
+    + Methods
+        + Aggregation pipeline
+        + Single-purpose aggregation
+        + Map-reduce functions - **Final Exam**
+            + works with systems that handle unstructured big data
+
++ Map-Reduce
+
+    + Data processing paradigm
+        + condensing large volumes of data
+            + reduces it down to something we can work with
+        + delivers aggregated results
+    + Map-Reduce
+        + Used in Big Data solutions
+        + Relies on distributed processing (sharded)
+        + Operations
+            + Map <- specifies data elements and aggregation
+            + Reduce <- filters and summarizes
+            + takes multiple stages
+            + SQL Server optimizes the query plan
+            + MongoDB does not optimize. Up to the analyst!
+
+
+## Aggregate Pipeline Overview
+
++ Aggregation Pipeline
+
+    + Based on data processing pipelines
+        + Data goes through a series of "stages"
+        + Transforms the data into new documents in each stage
+        + Each stage uses the output of the previous stage as a new collection
+        + **sequential process** - only works from top down - EXAM
+        + each stage modifies the data, creating a new collection
+    + Developer takes on the responsibility of designing stages in the most optimal way
+        + Compared to SQL Server which creates a query optimization plan on its own
+        + SQL <- already pre-optimized
+        + MQL <- analyst must plan to optimize
+    + **Pipelines can contain multiple stages
+        + More like programming than querying** - EXAM
+        + perform discrete operations at different points
+    + Aggregate function uses array of stages
+        
+![](sqlvsmql_02.png)
+
++ $group
+
+    + in a document collection, _id is mandatory
+    + _id: "$customer.name" <- define new ID called "customer.name"
+    + whenever we use a group or a function in an aggregate, must refer to a field name with $
+    + $ <- "use this field name" 
+    
++ More than Query
+
+    + Aggregation is more than GROUP BY
+        + sophisticated and complex processing
+        + multi-stage processing
+        + accumulating, but also modifying data
+    + Focus: 
+        + Set Expression Operators
+        + Accumulators ($group)
+        + Accumulators (in Other Stages)
+    + We have single documents with LOTS of stuff in them
+    + Focus: 
+        + $match <- filter documents
+        + $group <- summarize documents
+        + $project <- reshape documents
+        + $unwind <- expand arrays in documents
+        
+![](pipeline_operators.png)
+
+## $match
+
++ pipelines commonly begin with filtering the data
+
++ $match
+
+    + explicitly denotes a filtering expression
+        + the first evaluation in .find()
+        db.students.find({tags:{$eq:"Biking}})
+        db.students.aggregate(
+          [
+          {$match:{tags:{$eq:"Biking}}}  # stage 1
+          ]
+        )
+    + Can use all the same operators (and more...)
+    db.students.aggregate(
+      [
+        {$match:{$and:
+          [{age:{$gte: 40},
+            {item.major:{$in:["teaching", "French"]}},
+            {item.name:{$eq: "Andrew"}}}
+            ]}
+            }
+      ]
+    )
+    + NOTE: stages can appear multiple times
+    db.students.aggregate(
+      [
+      {$match: {age: {$gte: 40}},  # stage 1
+      {$match: {major: {$in: ["Teaching", "French"]}},  # stage 2
+      {$match: {item.name:{$eq: "Andrew}}  # stage 3
+      }}}
+      ]
+    )
+    + each stage goes through entire collection 
+    + single stage query only goes through collection once
+
+
+## $group
+
++ very similar to GROUP BY in SQL
++ Accumulators <- SQL Aggregation
+
++ $group
+
+    + for arithmetic processing
+    + non-arithmetic processing
+    + Specific syntax is required ("$fieldname")
+    + Similar to SQL
+    + need unique identifier to group fields on
+    + must think about how document structure will end up
+    
++ $sum - Example
+
+![](sum-example.png)
+
+    + must specify new field names in the result set document
+    + if no $, MQL assumes literal
+
++ \$sum - \$avg - Example
+
+    db.sales.aggregate(
+      [{$group:
+        {_id: "$customer.name",
+          totalsales: {$sum: "$order.amount"},
+          avgsales: {$avg: "$order.amount"},
+          avgrate: {$avg: {
+            $divide: {"$order.amount", "$order.quantity"}}}
+      }]
+      );
+      
++ practice in Studio 3T
+
+
+## $unwind
+
++ subdocuments need special handling
+
+    + Array of documents
+    + must be opened up (unwind())
+    + $unwind stage
+    + makes as many rows as sub items in the sub-document
+    
++ $unwind - Example
+
+    db.sales.aggregate(
+      [{$unwind: $items}  # must specify which field you wish to unwind sub-docs
+      {$group:
+        {_id: "$storeLocation",
+        totalsales:{$sum:
+                      {$multiply:
+                        ["$items.quantity", "$items.price"]}}
+          }
+          }
+      ]
+    )
+
+
+# MongoDB Aggregate, Part 2
+
+
+## $push and $addFields
+
++ \$group, \$push, \$addfields
++ helps to build document how you want it to look like
+
++ $push - Example
+
+    db.sales.aggregate(
+      [{$group:
+          {_id: "$customer.state",
+          customers:{$push:"$customer.name"}}
+          }]
+    );
+    + pushing the customer names into an array field
+    + $push kind of like an accumulater 
+    + $push builds an array of evaluators
+    + taking the dataset and structuring as documents as you wish
+    + $push only works within $group
+    
++ \$addFields <- just like mutate()
++ practice in Studio 3T
++ in a NoSQL environment, fields don't have to exist
+    
+
+## $project
+
++ similar to $find
++ much more capabilities while using \$project within an \$aggregation pipeline
++ $project in Aggregation
+
+    + Can simply specify fields to include in the output
+    + Also: 
+        + Include / exclude fields from the previous stage
+        + Include / exclude fields based on conditions
+        + Rename fields
+        + Create new array fields
+    + Only works with fields passed to it
+    
+![](project_01.png)
+
+![](project_02.png)
+
++ if student's middle name is blank or doesn't exist, then REMOVE, else use the student's middle name
+
+![](project_03.png)
+
+## CRUD
+
++ CRUD is fundamental to all DB systems
++ CRUD <- Insert, Update, Delete, Find and Modify
++ Modifying documents
+    
+    + No field enforcement
+    + Up to the application or analyst to ensure data is correct
+    
++ $insertOne
+
+    + inserts one new document into the collection
+    + up to you to ensure correct fields are included with correct information
+
++ $insertMany
+
+    + inserts many documents
+    + must be diligent on spelling and nomenclature
+    
+![](update.png)
+
+![](findAndModify.png)
+
+
+## Scalar
+
++ Single Purpose (Scalar-ish)
+
+    + Simple processes for aggregation from a single collection.
+        + .estimatedDocumentCount()
+            + Returns document count without a filter
+        + .count()
+            + Returns document count that would match a .find() query
+        + .distinct()
+            + Returns distinct list, based on field specified
+    + Scalar <- returns *a* value (singular)
+    
++ Real Scalar
+
+    + Producing a single value is controlled by the developer/analyst using a regular aggregation pipeline
+    db.sales.aggregate(
+      [
+      { $unwind: $items},
+      { $project: totalsales: { $sum: "$items.amount"}}
+      ]);
+
++ $concat
+    
+    + Join 2 or more strings
+    db.inventory.aggregate([
+      { $project: {descrip:
+        { $concat: ["$item", "-", "$description"]}
+        }}
+    ])
+    + '$' denotes "grab the field, not the str literal"
+    
++ $convert
+
+    + if possible, converts an input to a desired output type
+    + Includes onError and onNull values
+    db.inventory.aggregate([
+      { $addFields: {
+        convertedPrice: {
+          $convert: {
+          input: "$price", to: "decimal", 
+          onError: "Error",  # insert this string literal if an error is encountered
+          onNull: NumberDecimal("0")  # if null, replace with 0
+          }
+        }
+      }}
+    ])
+
++ $ifNull
+
+    + Evaluates an expression and returns the value if non-null or the replacement value if null
+    db.inventory.aggregate([
+      { $project: {descrip: 
+        { $ifNull: ["$description", "Unspecified"]}
+        }}
+    ])
+
+## Export Import
+
++ we are now able to extract information from MongoDB
++ Now that we have the data, what do we do with it?
++ export stuff into different formats 
+
